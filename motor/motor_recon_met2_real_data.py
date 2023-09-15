@@ -294,7 +294,7 @@ def motor_recon_met2(TE_array, path_to_data, path_to_mask, path_to_save_data, TR
         print('Step #1: Denoising using Total Variation:')
         
         for voxelt in progressbar.progressbar(range(nt), redirect_stdout=True):
-            print(voxelt+1, ' volumes processed')
+            # print(voxelt+1, ' volumes processed')
             data_vol  = np.squeeze(data[:,:,:,voxelt])
             sigma_est = np.mean(estimate_sigma(data_vol, channel_axis=None))
             #data[:,:,:,voxelt] = denoise_tv_chambolle(data_vol, weight=1.0*sigma_est, eps=0.0002, n_iter_max=200, multichannel=False)
@@ -307,7 +307,7 @@ def motor_recon_met2(TE_array, path_to_data, path_to_mask, path_to_save_data, TR
         path_size = [6,6,6] # real-size = 2*path_size + 1
         print('Step #1: Denoising using the NESMA filter:')
         for voxelx in progressbar.progressbar(range(nx), redirect_stdout=True):
-            print(voxelx+1, ' slices processed')
+            # print(voxelx+1, ' slices processed')
             min_x = np.max([voxelx - path_size[0], 0])
             max_x = np.min([voxelx + path_size[0], nx])
             for voxely in range(ny):
@@ -348,7 +348,7 @@ def motor_recon_met2(TE_array, path_to_data, path_to_mask, path_to_save_data, TR
     mean_T2_dist = 0
     for voxelz in progressbar.progressbar(range(nz), redirect_stdout=True):
         #print('Estimation of flip angles: slice', voxelz+1)
-        print(voxelz+1, ' slices processed')
+        # print(voxelz+1, ' slices processed')
         # Parallelization by rows: this is more efficient for computing a single or a few slices
         mask_slice = mask[:,:,voxelz]
         data_slice = data_smooth[:,:,voxelz,:]
@@ -426,7 +426,7 @@ def motor_recon_met2(TE_array, path_to_data, path_to_mask, path_to_save_data, TR
 
     print('Step #3: Estimation of T2 spectra:')
     for voxelz in progressbar.progressbar(range(nz), redirect_stdout=True):
-        print(voxelz+1, ' slices processed')
+        # print(voxelz+1, ' slices processed')
         # Parallelization by rows: this is more efficient for computing a single or a few slices
         mask_slice = mask[:,:,voxelz]
         data_slice = data[:,:,voxelz,:]
