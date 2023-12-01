@@ -50,18 +50,24 @@ def process_raw_t2_subject(subject, session):
         os.makedirs(Recon_folder_subi, exist_ok=True)
 
         # Copy data to local folder using FSL (fslmaths)
-        print("(1) Copy data to local folder")
-        os.system(f'fslmaths {merged_t2_echo_path} {Recon_folder_subi}/MET2.nii.gz')
+        if not os.path.isfile(f'{Recon_folder_subi}/MET2.nii.gz'):
+            print("(1) Copy data to local folder")
+            os.system(f'fslmaths {merged_t2_echo_path} {Recon_folder_subi}/MET2.nii.gz')
 
-        # Remove Gibbs Ringing Artifacts using MRtrix3 (optional)
-        print("(2) Remove Gibbs Ringing Artifacts, please wait...")
-        os.system(f'mrdegibbs {Recon_folder_subi}/MET2.nii.gz {Recon_folder_subi}/MET2.nii.gz -force')
+            # Remove Gibbs Ringing Artifacts using MRtrix3 (optional)
+            print("(2) Remove Gibbs Ringing Artifacts, please wait...")
+            os.system(f'mrdegibbs {Recon_folder_subi}/MET2.nii.gz {Recon_folder_subi}/MET2.nii.gz -force')
+        else:
+            print("Steps (1) and (2) already done")
 
         # Brain extraction (BET) using FSL
-        print("(3) BET, please wait...")
-        os.system(f'fslmaths {Recon_folder_subi}/MET2.nii.gz -Tmean {Recon_folder_subi}/MET2_avg.nii.gz')
-        os.system(f'bet {Recon_folder_subi}/MET2_avg.nii.gz {Recon_folder_subi}/MET2_mask -m -v -f 0.4')
-        os.system(f'mv {Recon_folder_subi}/MET2_mask_mask.nii.gz {Recon_folder_subi}/mask.nii.gz')
+        if not os.path.isfile(f'{Recon_folder_subi}/mask.nii.gz'):
+            print("(3) BET, please wait...")
+            os.system(f'fslmaths {Recon_folder_subi}/MET2.nii.gz -Tmean {Recon_folder_subi}/MET2_avg.nii.gz')
+            os.system(f'bet {Recon_folder_subi}/MET2_avg.nii.gz {Recon_folder_subi}/MET2_mask -m -v -f 0.4')
+            os.system(f'mv {Recon_folder_subi}/MET2_mask_mask.nii.gz {Recon_folder_subi}/mask.nii.gz')
+        else:
+            print("Step (3) already done")
 
         # Brain and Gray Matter Regions of Interest extraction using FastSurfer
         # print("(3) FastSurfer, please wait...")
@@ -70,21 +76,24 @@ def process_raw_t2_subject(subject, session):
         # Estimate T2 spectra (for different methods)
         for Estimation_method in list_of_methods:
             print("=================== Estimation method:   ", Estimation_method, " ===================")
-            print("(4) Non-parametric multicomponent T2 estimation, please wait...")
-            os.system(f"python run_real_data_script.py --path_to_folder={Recon_folder_subi}/ --input='MET2.nii.gz' --mask='mask.nii.gz' --minTE=10.68 --nTE=32 --TR=1000 --FA_method='spline' --FA_smooth='yes' --denoise='TV' --reg_method={Estimation_method}  --reg_matrix={reg_matrix} --savefig='yes' --savefig_slice=35 --numcores=-1 --myelin_T2=40")
+            if not os.path.isfile(f'{Recon_folder_subi}/recon_all_{Estimation_method}/MWF.nii.gz'):
+                print("(4) Non-parametric multicomponent T2 estimation, please wait...")
+                os.system(f"python run_real_data_script.py --path_to_folder={Recon_folder_subi}/ --input='MET2.nii.gz' --mask='mask.nii.gz' --minTE=10.68 --nTE=32 --TR=1000 --FA_method='spline' --FA_smooth='yes' --denoise='TV' --reg_method={Estimation_method}  --reg_matrix={reg_matrix} --savefig='yes' --savefig_slice=35 --numcores=-1 --myelin_T2=40")
 
-            # Bias-field correction (using FAST-FSL) of Total water content map
-            print("(5) Bias-field correction (using FAST-FSL) of Total water content map...")
-            if Estimation_method == "NNLS" or Estimation_method == "T2SPARC":
-                recon_folder_name = "recon_all_{}".format(Estimation_method)
+                # Bias-field correction (using FAST-FSL) of Total water content map
+                print("(5) Bias-field correction (using FAST-FSL) of Total water content map...")
+                if Estimation_method == "NNLS" or Estimation_method == "T2SPARC":
+                    recon_folder_name = "recon_all_{}".format(Estimation_method)
+                else:
+                    recon_folder_name = "recon_all_{}-{}".format(Estimation_method, reg_matrix)
+
+                # Estimate bias-field from the proton density map
+                os.system(f"fast -t 3 -n 3 -H 0.1 -I 4 -l 20.0 -b -o {Recon_folder_subi}/{recon_folder_name}/TWC {Recon_folder_subi}/{recon_folder_name}/TWC")
+
+                # Apply the correction to get the corrected map (i.e., corr = Raw/field-map)
+                os.system(f"fslmaths {Recon_folder_subi}/{recon_folder_name}/TWC -div {Recon_folder_subi}/{recon_folder_name}/TWC_bias {Recon_folder_subi}/{recon_folder_name}/TWC")
             else:
-                recon_folder_name = "recon_all_{}-{}".format(Estimation_method, reg_matrix)
-
-            # Estimate bias-field from the proton density map
-            os.system(f"fast -t 3 -n 3 -H 0.1 -I 4 -l 20.0 -b -o {Recon_folder_subi}/{recon_folder_name}/TWC {Recon_folder_subi}/{recon_folder_name}/TWC")
-
-            # Apply the correction to get the corrected map (i.e., corr = Raw/field-map)
-            os.system(f"fslmaths {Recon_folder_subi}/{recon_folder_name}/TWC -div {Recon_folder_subi}/{recon_folder_name}/TWC_bias {Recon_folder_subi}/{recon_folder_name}/TWC")
+                print(f"Steps (4) and (5) already done for {Estimation_method} method")
     else:
         print("Error: Data {} does not exist".format(merged_t2_echo_path))
         # with open("Recon_folder/subjects_with_problems.txt", "a") as error_file:
@@ -92,7 +101,7 @@ def process_raw_t2_subject(subject, session):
 
     fastsurfer_folder_subi = f'{outf_ses}/fastsurfer'
     t1w_parc = f'{fastsurfer_folder_subi}/mri/{bids_prefix}_space-T1w_spec-FS+DKTatlas+aseg_aparc.nii.gz'
-    if not os.path.isfile(t1w_parc):
+    if os.path.isfile(t1w_parc):
         print(f'Registering T1 ROI segmentation to T2 space for {subject} {session}')
         extract_ribbon(subject, session)
     else:
